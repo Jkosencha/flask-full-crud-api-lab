@@ -2,7 +2,8 @@ from flask import Flask, jsonify, request
 
 app = Flask(__name__)
 
-# Simulated data
+
+# Simulated data model
 class Event:
     def __init__(self, id, title):
         self.id = id
@@ -11,44 +12,79 @@ class Event:
     def to_dict(self):
         return {"id": self.id, "title": self.title}
 
-# In-memory "database"
+
+# In-memory "database" of events
 events = [
     Event(1, "Tech Meetup"),
-    Event(2, "Python Workshop")
+    Event(2, "Python Workshop"),
 ]
 
-# TODO: Task 1 - Define the Problem
-# Create a new event from JSON input
+
+# Helper: find an event by id (avoids repeating the search logic).
+# Returns the Event object, or None if no event has that id.
+def find_event(event_id):
+    return next((event for event in events if event.id == event_id), None)
+
+
+# GET / - JSON welcome message
+@app.route("/")
+def welcome():
+    return jsonify({"message": "Welcome to the Event Management API"}), 200
+
+
+# GET /events - return all events as a JSON array
+@app.route("/events", methods=["GET"])
+def get_events():
+    return jsonify([event.to_dict() for event in events]), 200
+
+
+# POST /events - create a new event from JSON input
 @app.route("/events", methods=["POST"])
 def create_event():
-    # TODO: Task 2 - Design and Develop the Code
+    data = request.get_json()
 
-    # TODO: Task 3 - Implement the Loop and Process Each Element
+    # Input validation: the request body must include a title.
+    if not data or "title" not in data:
+        return jsonify({"error": "Title is required"}), 400
 
-    # TODO: Task 4 - Return and Handle Results
-    pass
+    # Generate the next id based on the current highest id.
+    new_id = max((event.id for event in events), default=0) + 1
+    new_event = Event(new_id, data["title"])
+    events.append(new_event)
 
-# TODO: Task 1 - Define the Problem
-# Update the title of an existing event
-@app.route("/events/<int:event_id>", methods=["PATCH"])
-def update_event(event_id):
-    # TODO: Task 2 - Design and Develop the Code
+    # 201 Created for a successful POST.
+    return jsonify(new_event.to_dict()), 201
 
-    # TODO: Task 3 - Implement the Loop and Process Each Element
 
-    # TODO: Task 4 - Return and Handle Results
-    pass
+# PATCH /events/<id> - update the title of an existing event
+@app.route("/events/<int:id>", methods=["PATCH"])
+def update_event(id):
+    event = find_event(id)
 
-# TODO: Task 1 - Define the Problem
-# Remove an event from the list
-@app.route("/events/<int:event_id>", methods=["DELETE"])
-def delete_event(event_id):
-    # TODO: Task 2 - Design and Develop the Code
+    # 404 if the event doesn't exist.
+    if event is None:
+        return jsonify({"error": "Event not found"}), 404
 
-    # TODO: Task 3 - Implement the Loop and Process Each Element
+    data = request.get_json()
+    if not data or "title" not in data:
+        return jsonify({"error": "Title is required"}), 400
 
-    # TODO: Task 4 - Return and Handle Results
-    pass
+    event.title = data["title"]
+    return jsonify(event.to_dict()), 200
+
+
+# DELETE /events/<id> - remove an event from the list
+@app.route("/events/<int:id>", methods=["DELETE"])
+def delete_event(id):
+    event = find_event(id)
+
+    # 404 if the event doesn't exist.
+    if event is None:
+        return jsonify({"error": "Event not found"}), 404
+
+    events.remove(event)
+    return jsonify({"message": f"Event {id} deleted"}), 200
+
 
 if __name__ == "__main__":
     app.run(debug=True)
